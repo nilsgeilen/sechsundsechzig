@@ -21,7 +21,7 @@ class Card {
 
 Card.SUITS = ['C', 'H', 'S', 'D']
 Card.SUITS_FULL = ['club', 'heart', 'spade', 'diamond']
-Card.SYMBOLS = ['&clubs;', '&hearts;', '&spades;', '&diams;']
+Card.SYMBOLS = ['\u2663', '\u2665', '\u2660', 	'\u2666']
 Card.RANKS = ['A', 'K', 'Q', 'J', '10', '9']
 Card.RANKS_FULL = ['ace', 'king', 'queen', 'jack', 'ten', 'nine']
 

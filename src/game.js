@@ -31,6 +31,8 @@ let consts = {
 
 let options = {
     visibility: consts.VISIBILITY_ALL,
+    background: "white",
+    foreground: "yellow"
 }
 
 function restart() {
@@ -127,16 +129,16 @@ function render(evt) {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    ctx.fillStyle = "green"
+    ctx.fillStyle = options.background
     ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = "yellow"
+    ctx.fillStyle = options.foreground
 
     if (game.deck.size) {
         const closed = game.deck.closed || wait_for_user_input && inRect(mouse, 80, 238, 180, 315) && game.canExchange() === -1
         renderDeck(game.deck, true, closed, 100, 180)
-    } else {
-        ctx.fillText("Trump: " + Card.SYMBOLS[game.trump], 144, 250)
-    }
+    } 
+    
+    $('#trumplbl').text("Trump: " + Card.SYMBOLS[game.trump])
 
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
     renderHand(game.hands[1], false, -1, -1, 0)
