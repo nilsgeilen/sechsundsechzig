@@ -31,7 +31,7 @@ let consts = {
 
 let options = {
     visibility: consts.VISIBILITY_ALL,
-    background: "white",
+    background: "green",
     foreground: "yellow"
 }
 

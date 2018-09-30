@@ -19,7 +19,7 @@
     </center>
     <br>
 
-    <div id="options">
+    <div id="options" style="display:none;">
 
       <div class="form-group col-lg-12">
         <label class="control-label col-sm-5">
@@ -47,16 +47,16 @@
 
       <div class="form-group">
         <center>
-          <button onclick="startGame()" class="btn btn-primary">Start Game</button>
+          <button onclick="startGame()" class="btn btn-primary">Ok</button>
         </center>
       </div>
     </div>
 
-    <div id="game" style="display:none;">
+    <div id="game">
       <button onclick="restart()" class="btn btn-primary">New Game</button>
       <button onclick="$('#options').show(); $('#game').hide()" class="btn btn-std">Options</button>
       <button  class="btn btn-std">Rules</button>
-      <label id="trumplbl"></label>
+      <span style="float:right;"><label id="trumplbl"></label></span>
       <br><br>
       <canvas id="screen" width="900" height="500"></canvas>
       <textarea id="console" class="scrollabletextbox" style="width:100%" width="900" height="500"></textarea>
@@ -68,8 +68,8 @@
       $('#options').hide()
       $('#game').show()
       options.background = $('#colorPicker').val()
-      if (options.background === "white")
-        options.foreground = "black"
+     // if (options.background === "white")
+       // options.foreground = "black"
       options.visibility = $('#visibilityPicker').val()
     }
   </script>
