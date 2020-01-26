@@ -489,10 +489,30 @@ class Table {
     constructor(ais) {
         this.game = new GameState()
         this.ais = ais
+        this.players = ["Human", "AI"]
+        this.points = [0,0]
+    }
+
+    reset() {
+        this.game = new GameState()
+        this.points = [0,0]
     }
 
     deal() {
         this.game = new GameState()
+    }
+
+    result() {
+        let vps = this.game.result(0)
+        if (vps) {
+            this.deal()
+            if (vps === GameState.REMIS)
+                return {remis:true}
+            let [winner, points] = vps > 0 ? [0, vps] : [1, -vps]
+            let game = (this.points[winner] += points) >= 7
+            let player = this.players[winner]
+            return {player, points, game}
+        }
     }
 
     cleanUp() {

@@ -2,8 +2,7 @@
 let log = $('#console')
 let canvas = $("#screen")[0]
 let ctx = canvas.getContext("2d")
-ctx.font = "30px Arial"
-ctx.textAlign = "center"
+
 
 
 let table = new Table([null, new SimpleAI()])
@@ -14,7 +13,8 @@ img_back.src = "gfx/paris/backs/back.png"
 let sound = {
     place: new Audio('snd/cardPlace2.ogg'),
     slide: new Audio('snd/cardSlide2.ogg'),
-    meld: new Audio('snd/medieval_loop.ogg')
+    meld: new Audio('snd/medieval_loop.ogg'),
+    shuffle: new Audio('snd/shuffle.wav')
 }
 
 let consts = {
@@ -36,26 +36,33 @@ let options = {
 }
 
 function restart() {
-    table.deal()
+    table.reset()
     render(-1)
 }
 
+const GAME_LVL = ["remis", "normal", "schneider", "schwarz"]
 
+let dealt = false
 
 //window.onload = render
 
 canvas.addEventListener('click', function (evt) {
     let mouse = getMousePos(canvas, evt)
 
-    let vps = table.game.result(0)
-    if (vps) {
-        if (vps === GameState.REMIS)
-            alert("Remis!")
-        else if (vps > 0)
-            alert("Human wins with " + vps)
-        else if (vps < 0)
-            alert("AI wins with " + -vps)
-        else throw "Fail: corrupted result"
+    let result = table.result()
+    if (!dealt) {
+        dealt = true
+        sound.shuffle.play()
+        return
+    }
+    if (result) {
+        if (result === GameState.REMIS)
+            alert("Remis! (65-65)")
+        else {
+            alert(result.player + " wins the hand "+GAME_LVL[result.points]+" (" + result.points + " points)")
+        }
+
+        //else throw "Fail: corrupted result"
     } else if (!table.cleanUp()) {
         if (table.waitingForUserInput()) {
             if (inRect(mouse, 80, 238, 180, 315)) {
@@ -70,6 +77,7 @@ canvas.addEventListener('click', function (evt) {
         }
     }
 
+
     if (table.game.trick[0] == null && table.game.trick[1] == null) {
         sound.slide.play()
     } else if (table.game.play_sound_melded) {
@@ -82,7 +90,7 @@ canvas.addEventListener('click', function (evt) {
     render(-1)
 
     // log.append(game.hands[1].cards.reduce((a, b) => a+" "+b)+"\n")
-   // console.log(extractFeatures(game, 0))
+    // console.log(extractFeatures(game, 0))
 }, false)
 
 canvas.addEventListener('mousemove', render, false)
@@ -112,10 +120,32 @@ function atCard(mouse, x, y) {
 }
 
 function render(evt) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    ctx.fillStyle = options.background
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = options.foreground
+
+
+    if (Math.max(...table.points) >= 7) {
+        let player = table.players[table.points[0] >= 7 ? 0 : 1];
+
+        ctx.font = "30px Arial"
+        ctx.textAlign = "center"
+        ctx.fillText("("+table.points[0]+" to "+table.points[1]+')', consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2+30)
+        ctx.fillText(player+ " wins the game", consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2-30)
+        return
+    } 
+
+    if (!dealt) {
+
+        return
+    }
+
     let mouse = evt ? getMousePos(canvas, evt) : { x: 0, y: 0 }
     let game = table.game
     let wait_for_user_input = !table.ais[game.active] && !game.trick[game.active]
-    
+
 
     let highlighted = -1
     if (!table.ais[game.active]) {
@@ -127,17 +157,24 @@ function render(evt) {
 
     let canMeld = game.canMeld(highlighted)
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    ctx.fillStyle = options.background
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = options.foreground
+    ctx.font = "20px Arial"
+    ctx.textAlign = "left"
+
+    ctx.fillText("points", 40, 40)
+    var text = ctx.measureText("points");
+    ctx.fillRect(40, 44, text.width, 2);
+    for (let i = 0; i < 2; i++)
+        ctx.fillText(table.players[i] + ": " +table.points[i], 40, 110- 30 * i)
+
+    ctx.font = "30px Arial"
+    ctx.textAlign = "center"
 
     if (game.deck.size) {
         const closed = game.deck.closed || wait_for_user_input && inRect(mouse, 80, 238, 180, 315) && game.canExchange() === -1
         renderDeck(game.deck, true, closed, 100, 180)
-    } 
-    
+    }
+
     $('#trumplbl').text("Trump: " + Card.SYMBOLS[game.trump])
 
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
