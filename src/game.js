@@ -63,6 +63,7 @@ canvas.addEventListener('click', function (evt) {
             alert(result.player + " wins the hand "+GAME_LVL[result.points]+" (" + result.points + " points)")
         } 
         dealt = false
+        return
     } else if (!table.cleanUp()) {
         if (table.waitingForUserInput()) {
             if (inRect(mouse, 80, 238, 180, 315)) {
@@ -88,6 +89,22 @@ canvas.addEventListener('click', function (evt) {
     }
 
     render(evt)
+
+    // if (!table.waitingForUserInput())
+    //     setTimeout(function() {
+    //         if (!table.waitingForUserInput()) {
+    //             table.handle()
+
+    //             if (table.game.trick[0] == null && table.game.trick[1] == null) {
+    //                 sound.slide.play()
+    //             } else if (table.game.play_sound_melded) {
+    //                 sound.meld.play()
+    //                 table.game.play_sound_melded = false
+    //             } else if (table.game.trick[table.game.other()]) {
+    //                 sound.place.play()
+    //             }
+    //         }
+    //     }, 100)
 
     // log.append(game.hands[1].cards.reduce((a, b) => a+" "+b)+"\n")
     // console.log(extractFeatures(game, 0))
@@ -127,15 +144,15 @@ function render(evt) {
     ctx.fillStyle = options.foreground
 
 
-    // if (Math.max(...table.points) >= 7) {
-    //     let player = table.players[table.points[0] >= 7 ? 0 : 1];
+    if (Math.max(...table.points) >= 7) {
+        let player = table.players[table.points[0] >= 7 ? 0 : 1];
 
-    //     ctx.font = "30px Arial"
-    //     ctx.textAlign = "center"
-    //     ctx.fillText("("+table.points[0]+" to "+table.points[1]+')', consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2+30)
-    //     ctx.fillText(player+ " wins the game", consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2-30)
-    //     return
-    // } 
+        ctx.font = "30px Arial"
+        ctx.textAlign = "center"
+        ctx.fillText("("+table.points[0]+" to "+table.points[1]+')', consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2+30)
+        ctx.fillText(player+ " wins the game", consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2-30)
+        return
+    } 
 
     
     let mouse = evt ? getMousePos(canvas, evt) : { x: 0, y: 0 }
@@ -191,11 +208,20 @@ function render(evt) {
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
     renderHand(game.hands[1], false, -1, -1, 0)
 
-    if (game.trick[0]) {
-        renderCard(game.trick[0], 440 - consts.CARD_WIDTH, 173)
-    }
-    if (game.trick[1]) {
-        renderCard(game.trick[1], 460, 173)
+    if (game.outplay) {
+        if (game.trick[0]) {
+            renderCard(game.trick[0], 460 - consts.CARD_WIDTH, 182)
+        }
+        if (game.trick[1]) {
+            renderCard(game.trick[1], 440, 164)
+        }
+        } else{
+        if (game.trick[1]) {
+            renderCard(game.trick[1], 440, 164)
+        }
+        if (game.trick[0]) {
+            renderCard(game.trick[0], 460 - consts.CARD_WIDTH, 182)
+        }
     }
 
     let x = 750

@@ -217,6 +217,8 @@ const GameState = function () {
                 this.eyes_when_closed = 0
                 this.play_sound_melded = false
             }
+            // info for ui
+            this.outplay = this.active
         }
 
         cripple() {
@@ -480,6 +482,7 @@ const GameState = function () {
             if (game.hands[winner].cards.length === 0 && game.phase() === GameState.PHASE_2)
                 game.won[winner].meld(new Meld(10, 0))
             //  this.trick = [null, null]
+            game.outplay = game.active
             game.active = winner
         } else {
             game.active = -(game.active - 1)
