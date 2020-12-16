@@ -12,34 +12,37 @@ class Card {
             this.img = new Image()
             this.img.src = "gfx/paris/cards/" + Card.SUITS_FULL[suit] + "/" + Card.RANKS_FULL[rank] + ".png"
         }
+        Object.freeze(this)
     }
 
     toString() {
         return Card.SYMBOLS[this.suit] + Card.RANKS[this.rank]
     }
+
+    static SUITS = ['C', 'H', 'S', 'D']
+    static SUITS_FULL = ['club', 'heart', 'spade', 'diamond']
+    static SYMBOLS = ['\u2663', '\u2665', '\u2660', 	'\u2666']
+    static COLORS = ['black', 'red', 'black', 'red']
+    static RANKS = ['A', 'K', 'Q', 'J', '10', '9']
+    static RANKS_FULL = ['ace', 'king', 'queen', 'jack', 'ten', 'nine']
+
+    static EYES = [11, 4, 3, 2, 10, 0]
+    static POWER = [13, 11, 10, 9, 12, 8]
+    
+    static CLUBS = 0
+    static SPADES = 2
+    static HEARTS = 1
+    static DIAMONDS = 3
+    static NO_TRUMP = -1
+    
+    static ACE = 0
+    static KING = 1
+    static QUEEN = 2
+    static JACK = 3
+    static TEN = 4
+    static NINE = 5
+
 }
-
-Card.SUITS = ['C', 'H', 'S', 'D']
-Card.SUITS_FULL = ['club', 'heart', 'spade', 'diamond']
-Card.SYMBOLS = ['\u2663', '\u2665', '\u2660', 	'\u2666']
-Card.RANKS = ['A', 'K', 'Q', 'J', '10', '9']
-Card.RANKS_FULL = ['ace', 'king', 'queen', 'jack', 'ten', 'nine']
-
-Card.EYES = [11, 4, 3, 2, 10, 0]
-Card.POWER = [13, 11, 10, 9, 12, 8]
-
-Card.CLUBS = 0
-Card.SPADES = 2
-Card.HEARTS = 1
-Card.DIAMONDS = 3
-Card.NO_TRUMP = -1
-
-Card.ACE = 0
-Card.KING = 1
-Card.QUEEN = 2
-Card.JACK = 3
-Card.TEN = 4
-Card.NINE = 5
 
 class Deck {
     constructor(card_cnt) {
@@ -48,7 +51,6 @@ class Deck {
 
         for (let rank = 0; rank < card_cnt; rank++) {
             for (let suit = 0; suit < 4; suit++) {
-
                 this.cards.push(new Card(suit, rank))
             }
         }
@@ -186,6 +188,14 @@ class Tricks {
 
 const GameState = function () {
     class GameState {
+
+        static PHASE_1 = 1
+        static PHASE_2 = 2
+        static PHASE_CLOSED = 3
+
+        static REMIS = "remis"
+        static UNDEC = 0
+
         constructor(game) {
             if (game) {
                 this.deck = game.deck.copy()
@@ -442,12 +452,6 @@ const GameState = function () {
     const __LISTS_TRUE = Array(7).fill(null).map((_, i) => Array(i).fill(true))
     const __RANGE = [...Array(7).keys()].map(n => [...Array(n).keys()])
 
-    GameState.PHASE_1 = 1
-    GameState.PHASE_2 = 2
-    GameState.PHASE_CLOSED = 3
-
-    GameState.REMIS = "remis"
-    GameState.UNDEC = 0
 
     function __legal(game, cards, other) {
         let result = __LISTS_FALSE[cards.length].slice(0)
@@ -482,7 +486,7 @@ const GameState = function () {
         }
     }
 
-    return GameState
+    return Object.freeze(GameState)
 }()
 
 class Table {
@@ -507,7 +511,7 @@ class Table {
         if (vps) {
             this.deal()
             if (vps === GameState.REMIS)
-                return {remis:true}
+                return GameState.REMIS
             let [winner, points] = vps > 0 ? [0, vps] : [1, -vps]
             let game = (this.points[winner] += points) >= 7
             let player = this.players[winner]

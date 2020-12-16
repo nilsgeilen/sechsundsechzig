@@ -37,14 +37,15 @@ let options = {
 
 function restart() {
     table.reset()
-    render(-1)
+    dealt = false
+    render()
 }
 
 const GAME_LVL = ["remis", "normal", "schneider", "schwarz"]
 
 let dealt = false
 
-//window.onload = render
+window.onload = render
 
 canvas.addEventListener('click', function (evt) {
     let mouse = getMousePos(canvas, evt)
@@ -60,9 +61,8 @@ canvas.addEventListener('click', function (evt) {
             alert("Remis! (65-65)")
         else {
             alert(result.player + " wins the hand "+GAME_LVL[result.points]+" (" + result.points + " points)")
-        }
-
-        //else throw "Fail: corrupted result"
+        } 
+        dealt = false
     } else if (!table.cleanUp()) {
         if (table.waitingForUserInput()) {
             if (inRect(mouse, 80, 238, 180, 315)) {
@@ -87,7 +87,7 @@ canvas.addEventListener('click', function (evt) {
         sound.place.play()
     }
 
-    render(-1)
+    render(evt)
 
     // log.append(game.hands[1].cards.reduce((a, b) => a+" "+b)+"\n")
     // console.log(extractFeatures(game, 0))
@@ -127,21 +127,17 @@ function render(evt) {
     ctx.fillStyle = options.foreground
 
 
-    if (Math.max(...table.points) >= 7) {
-        let player = table.players[table.points[0] >= 7 ? 0 : 1];
+    // if (Math.max(...table.points) >= 7) {
+    //     let player = table.players[table.points[0] >= 7 ? 0 : 1];
 
-        ctx.font = "30px Arial"
-        ctx.textAlign = "center"
-        ctx.fillText("("+table.points[0]+" to "+table.points[1]+')', consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2+30)
-        ctx.fillText(player+ " wins the game", consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2-30)
-        return
-    } 
+    //     ctx.font = "30px Arial"
+    //     ctx.textAlign = "center"
+    //     ctx.fillText("("+table.points[0]+" to "+table.points[1]+')', consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2+30)
+    //     ctx.fillText(player+ " wins the game", consts.WIN_WIDTH / 2, consts.WIN_HEIGHT/2-30)
+    //     return
+    // } 
 
-    if (!dealt) {
-
-        return
-    }
-
+    
     let mouse = evt ? getMousePos(canvas, evt) : { x: 0, y: 0 }
     let game = table.game
     let wait_for_user_input = !table.ais[game.active] && !game.trick[game.active]
@@ -162,20 +158,35 @@ function render(evt) {
     ctx.textAlign = "left"
 
     ctx.fillText("points", 40, 40)
-    var text = ctx.measureText("points");
-    ctx.fillRect(40, 44, text.width, 2);
+    ctx.fillRect(40, 44, ctx.measureText("points").width, 2);
     for (let i = 0; i < 2; i++)
         ctx.fillText(table.players[i] + ": " +table.points[i], 40, 110- 30 * i)
 
-    ctx.font = "30px Arial"
-    ctx.textAlign = "center"
+    if (!dealt) {
+        renderPile(game.deck, 100, 180)
+        return
+    }
 
     if (game.deck.size) {
         const closed = game.deck.closed || wait_for_user_input && inRect(mouse, 80, 238, 180, 315) && game.canExchange() === -1
         renderDeck(game.deck, true, closed, 100, 180)
     }
 
-    $('#trumplbl').text("Trump: " + Card.SYMBOLS[game.trump])
+    //$('#trumplbl').text("Trump: " + Card.SYMBOLS[game.trump])
+    ctx.fillText("trump", 40, 400)
+    let measure = ctx.measureText("points")
+    ctx.fillRect(40, 404, measure.width, 2);
+
+    ctx.font = "40px Arial"
+    ctx.textAlign = "center"
+    let trump_color = Card.COLORS[game.trump]
+    if (trump_color !== options.background)
+        ctx.fillStyle = trump_color
+    ctx.fillText(Card.SYMBOLS[game.trump], 40 + measure.width/2, 440)
+    ctx.fillStyle = options.foreground
+    ctx.font = "30px Arial"
+    
+
 
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
     renderHand(game.hands[1], false, -1, -1, 0)
@@ -186,8 +197,6 @@ function render(evt) {
     if (game.trick[1]) {
         renderCard(game.trick[1], 460, 173)
     }
-
-
 
     let x = 750
 
