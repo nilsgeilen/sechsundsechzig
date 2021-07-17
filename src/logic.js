@@ -196,6 +196,9 @@ const GameState = function () {
         static REMIS = "remis"
         static UNDEC = 0
 
+        static EVT_PLAY = 'PLAY'
+        static EVT_MELD = 'MELD'
+
         constructor(game) {
             if (game) {
                 this.deck = game.deck.copy()
@@ -205,7 +208,6 @@ const GameState = function () {
                 this.trick = [game.trick[0], game.trick[1]]
                 this.won = [game.won[0].copy(), game.won[1].copy()]
                 this.eyes_when_closed = game.eyes_when_closed
-                this.play_sound_melded = game.play_sound_melded
             } else {
                 this.deck = new Deck(6)
                 this.deck.shuffle()
@@ -215,7 +217,6 @@ const GameState = function () {
                 this.trick = [null, null]
                 this.won = [new Tricks(), new Tricks()]
                 this.eyes_when_closed = 0
-                this.play_sound_melded = false
             }
             // info for ui
             this.outplay = this.active
@@ -294,21 +295,26 @@ const GameState = function () {
                 if (this.phase() !== GameState.PHASE_1 && this.trick[-(this.active - 1)]) {
                     let ll = this.legal()
                     if (!ll[card])
-                        return
+                        return {}
                 }
+
+                let result = {}
 
                 if (!this.trick[this.other()]) {
                     if (this.canMeld(card) !== -1) {
                         let suit = this.hands[this.active].cards[card].suit
-                        this.won[this.active].meld(new Meld(suit === this.trump ? 40 : 20, suit))
-                        this.play_sound_melded = true
+                        result.meld = new Meld(suit === this.trump ? 40 : 20, suit)
+                        this.won[this.active].meld(result.meld)
                     }
                 }
 
-                [this.trick[this.active]] = this.hands[this.active].cards.splice(card, 1)
+                result.card = [this.trick[this.active]] = this.hands[this.active].cards.splice(card, 1)
 
                 __evalTrick(this)
+
+                return result
             }
+            return {}
         }
 
         canMeld(card, player = this.active) {
@@ -529,7 +535,7 @@ class Table {
     handle() {
         this.cleanUp()
         this.game.exchange()
-        this.game.play(this.ais[this.game.active].handle(this.game.cripple()))
+        return this.game.play(this.ais[this.game.active].handle(this.game.cripple()))
     }
 
     waitingForUserInput() {

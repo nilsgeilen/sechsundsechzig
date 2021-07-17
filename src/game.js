@@ -9,12 +9,15 @@ let table = new Table([null, new SimpleAI()])
 
 let img_back = new Image()
 img_back.src = "gfx/paris/backs/back.png"
+let icon_marriage = new Image()
+icon_marriage.src = 'gfx/icons/marriage.png'
 
 let sound = {
     place: new Audio('snd/cardPlace2.ogg'),
     slide: new Audio('snd/cardSlide2.ogg'),
     meld: new Audio('snd/medieval_loop.ogg'),
-    shuffle: new Audio('snd/shuffle.wav')
+    shuffle: new Audio('snd/shuffle.wav'),
+    fail: new Audio('snd/error.wav')
 }
 
 let consts = {
@@ -32,7 +35,8 @@ let consts = {
 let options = {
     visibility: consts.VISIBILITY_ALL,
     background: "green",
-    foreground: "yellow"
+    foreground: "yellow",
+    animation_delay_ms: 900,
 }
 
 function restart() {
@@ -43,72 +47,109 @@ function restart() {
 
 const GAME_LVL = ["remis", "normal", "schneider", "schwarz"]
 
-let dealt = false
+const DEALING = 'DEALING'
+const MARRIAGE = 'MARRIAGE'
+const ROYAL_MARRIAGE = 'ROYAL_MARRIAGE'
+
+let animation = null
+
+let dealt = 0
 
 window.onload = render
 
-canvas.addEventListener('click', function (evt) {
-    let mouse = getMousePos(canvas, evt)
+function animateDealing() {
+    animation = DEALING
+    setTimeout(() => {
+        dealt++
+        render()
+        if (dealt < 6)
+            animateDealing()
+        else 
+            animation = null
+    }, options.animation_delay_ms/6)
+}
+
+function animateMarriage(royal) {
+    animation = royal ? ROYAL_MARRIAGE : MARRIAGE
+    setTimeout(() => {
+        animation = null
+        render()
+    }, options.animation_delay_ms)
+}
+
+const timeEvent = function() {
+    let curr = () => {}
+    return skip => {
+        if (skip) {
+            curr()
+            return
+        }
+        curr()
+        curr = () => skip = true
+        setTimeout(() => {
+            if (!skip) {
+                handleEvent()
+            }
+        }, options.animation_delay_ms)
+    }
+}()
+
+function handleAction(action) {
+    if (action.meld) {
+        sound.meld.play()
+        animateMarriage(action.meld.eyes === 40)
+    } else if (action.card) {
+        sound.place.play()
+    } else {
+        sound.fail.play()
+    }
+}
+
+function handleEvent(evt) {
+    timeEvent(true)
 
     let result = table.result()
+        
     if (!dealt) {
-        dealt = true
+        animateDealing()
+        
         sound.shuffle.play()
-        return
-    }
-    if (result) {
+    } else if (result) {
         if (result === GameState.REMIS)
             alert("Remis! (65-65)")
         else {
+            if (result.player === 'AI') {
+                sound.fail.play()
+            } else {
+                sound.meld.play()
+            }
             alert(result.player + " wins the hand "+GAME_LVL[result.points]+" (" + result.points + " points)")
         } 
-        dealt = false
+        dealt = 0
         return
-    } else if (!table.cleanUp()) {
-        if (table.waitingForUserInput()) {
+    } else if (table.cleanUp()) {
+        sound.slide.play()
+    } else if (evt && table.waitingForUserInput()) {
+        let mouse = getMousePos(canvas, evt)
             if (inRect(mouse, 80, 238, 180, 315)) {
                 if (!table.game.exchange())
                     table.game.close()
+                    sound.slide.play()
             } else {
                 let card = highlight(mouse)
-                table.game.play(card)
+                handleAction(table.game.play(card))
             }
         } else {
-            table.handle()
+            handleAction(table.handle())
         }
-    }
-
-
-    if (table.game.trick[0] == null && table.game.trick[1] == null) {
-        sound.slide.play()
-    } else if (table.game.play_sound_melded) {
-        sound.meld.play()
-        table.game.play_sound_melded = false
-    } else if (table.game.trick[table.game.other()]) {
-        sound.place.play()
-    }
 
     render(evt)
 
-    // if (!table.waitingForUserInput())
-    //     setTimeout(function() {
-    //         if (!table.waitingForUserInput()) {
-    //             table.handle()
+    if (!table.waitingForUserInput() || table.game.trick[0])
+        timeEvent()
+}
 
-    //             if (table.game.trick[0] == null && table.game.trick[1] == null) {
-    //                 sound.slide.play()
-    //             } else if (table.game.play_sound_melded) {
-    //                 sound.meld.play()
-    //                 table.game.play_sound_melded = false
-    //             } else if (table.game.trick[table.game.other()]) {
-    //                 sound.place.play()
-    //             }
-    //         }
-    //     }, 100)
-
-    // log.append(game.hands[1].cards.reduce((a, b) => a+" "+b)+"\n")
-    // console.log(extractFeatures(game, 0))
-}, false)
+canvas.addEventListener('click', handleEvent, false)
 
 canvas.addEventListener('mousemove', render, false)
 
@@ -161,10 +202,12 @@ function render(evt) {
 
 
     let highlighted = -1
+    let highlight_exchange = false
     if (!table.ais[game.active]) {
         highlighted = highlight(mouse)
         if (mouse.x >= 80 && mouse.x <= 238 && mouse.y >= 180 && mouse.y <= 315) {
             highlighted = game.canExchange()
+            highlight_exchange = true
         }
     }
 
@@ -180,18 +223,19 @@ function render(evt) {
         ctx.fillText(table.players[i] + ": " +table.points[i], 40, 110- 30 * i)
 
     if (!dealt) {
-        renderPile(game.deck, 100, 180)
+        renderPile(game.deck, consts.WIN_WIDTH/2 - consts.CARD_WIDTH/2, 180)
+        ctx.fillText("click to deal", consts.WIN_WIDTH/2 - consts.CARD_WIDTH/2 -20, 120)
         return
     }
 
     if (game.deck.size) {
         const closed = game.deck.closed || wait_for_user_input && inRect(mouse, 80, 238, 180, 315) && game.canExchange() === -1
-        renderDeck(game.deck, true, closed, 100, 180)
+        renderDeck(game.deck, true, closed, 100, 180, highlight_exchange)
     }
 
     //$('#trumplbl').text("Trump: " + Card.SYMBOLS[game.trump])
     ctx.fillText("trump", 40, 400)
-    let measure = ctx.measureText("points")
+    let measure = ctx.measureText("trump")
     ctx.fillRect(40, 404, measure.width, 2);
 
     ctx.font = "40px Arial"
@@ -208,7 +252,13 @@ function render(evt) {
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
     renderHand(game.hands[1], false, -1, -1, 0)
 
-    if (game.outplay) {
+    if (animation === MARRIAGE || animation === ROYAL_MARRIAGE) {
+        ctx.drawImage(icon_marriage, 450 - icon_marriage.width / 2, 200)
+        let text = animation === ROYAL_MARRIAGE ? 'Royal Marriage' : 'Marriage'
+        ctx.fillText(text, 450, 180)
+        let points = animation === ROYAL_MARRIAGE ? 40 : 20;
+        ctx.fillText(points, 450, 300)
+    } else if (game.outplay) {
         if (game.trick[0]) {
             renderCard(game.trick[0], 460 - consts.CARD_WIDTH, 182)
         }
@@ -224,6 +274,8 @@ function render(evt) {
         }
     }
 
+    
+
     let x = 750
 
     if (options.visibility >= consts.VISIBILITY_OWN && game.won[0].cards.length && atCard(mouse, x, 300)) {
@@ -237,6 +289,7 @@ function render(evt) {
         renderPile(game.won[1], x, 50)
     }
 }
+
 
 function drawRotated(image, degrees, x, y) {
     //ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -269,24 +322,29 @@ function offset(hand) {
 }
 
 function renderHand(hand, open, highlighted, canMeld, y) {
-    let x = offset(hand)
-    for (let i in hand.cards) {
+    cards = hand.cards.slice(0, Math.min(dealt, hand.cards.length))
+    let x = offset({cards: cards})
+    for (let i in cards) {
         let yy = y
         if (i == highlighted || i == canMeld) {
             yy -= 10
         }
         if (open)
-            renderCard(hand.cards[i], x + 86 * i, yy)
+            renderCard(cards[i], x + 86 * i, yy)
         else
             ctx.drawImage(img_back, x + 86 * i, yy)
     }
 }
 
-function renderDeck(deck, show_trump, closed, x, y) {
+function renderDeck(deck, show_trump, closed, x, y, highlight_trump = false) {
     if (deck.size) {
 
-        if (!closed && show_trump)
-            drawRotated(deck.last.img, 90, x + deck.cards[0].img.height, y + (deck.cards[0].img.height - deck.cards[0].img.width) / 2)
+        if (!closed && show_trump) {
+            x_pos =  x + deck.cards[0].img.height
+            if (highlight_trump)
+                x_pos += 10
+            drawRotated(deck.last.img, 90, x_pos, y + (deck.cards[0].img.height - deck.cards[0].img.width) / 2)
+        }
         for (let i = 0; i < deck.size / 2; i++)
             ctx.drawImage(img_back, x - i * 2, y - i * 2)
         if (closed)
@@ -298,7 +356,8 @@ function renderPile(pile, x, y) {
     for (let i = 0; i < pile.cards.length / 2; i++) {
         ctx.drawImage(img_back, x - i * 2, y - i * 2)
     }
-    ctx.fillText(pile.sum(), x + 44 - pile.cards.length, y + 80 - pile.cards.length)
+    if (pile.sum)
+        ctx.fillText(pile.sum(), x + 44 - pile.cards.length, y + 80 - pile.cards.length)
 }
 
 function renderPileOpen(pile, x, y) {

@@ -1,3 +1,3 @@
 medieval_loop.ogg by remaxim under GPL 3.0 (https://opengameart.org/content/short-medieval-loop)
 cardPlace2.ogg and cardSlide2.ogg by Kenney und public domain (https://opengameart.org/content/boardgame-pack)
-shuffle.wav by https://opengameart.org/content/card-game-sounds
+shuffle.wav and error.wav by HaelDB (https://opengameart.org/content/card-game-sounds)
