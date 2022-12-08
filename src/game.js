@@ -24,6 +24,7 @@ let consts = {
     VISIBILITS_NONE: 0,
     VISIBILITY_OWN: 1,
     VISIBILITY_ALL: 2,
+    VISIBILITY_OPEN: 3,
 
     CARD_WIDTH: 88,
     CARD_HEIGHT: 138,
@@ -33,7 +34,7 @@ let consts = {
 }
 
 let options = {
-    visibility: consts.VISIBILITY_ALL,
+    visibility: consts.VISIBILITY_OPEN ,
     background: "green",
     foreground: "yellow",
     animation_delay_ms: 900,
@@ -250,7 +251,7 @@ function render(evt) {
 
 
     renderHand(game.hands[0], true, highlighted, canMeld, 350)
-    renderHand(game.hands[1], false, -1, -1, 0)
+    renderHand(game.hands[1], options.visibility >= consts.VISIBILITY_OPEN, -1, -1, 0)
 
     if (animation === MARRIAGE || animation === ROYAL_MARRIAGE) {
         ctx.drawImage(icon_marriage, 450 - icon_marriage.width / 2, 200)

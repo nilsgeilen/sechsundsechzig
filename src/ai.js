@@ -129,21 +129,6 @@ class AlphaBetaAI {
 
 class SimpleHandEvaluator {
     constructor(config) {
-        this.marriage_active = 15.0
-        this.marriage_passive = 10.0
-        this.candidate = 2.5
-        this.royal_marriage_active = 30.0
-        this.royal_marriage_passive = 20.0
-        this.royal_candidate = 5.0
-
-        this.card_val = []
-        for (let val of Card.EYES)
-            this.card_val.push(0.5 * val)
-
-        this.trump_val = []
-        for (let val of Card.EYES)
-            this.trump_val.push(5.0 + val)
-
         if (config) {
             for (let prop in config) {
                 if (config[prop] instanceof Array)
@@ -151,6 +136,21 @@ class SimpleHandEvaluator {
                 else
                     this[prop] = config[prop]
             }
+        } else {
+            this.outplay = 1.0
+            this.marriage_active = 15.0
+            this.marriage_passive = 10.0
+            this.candidate = 2.5
+            this.royal_marriage_active = 30.0
+            this.royal_marriage_passive = 20.0
+            this.royal_candidate = 5.0
+
+            this.schneider = 15.0
+            this.schwarz = 15.0
+
+            this.card_val = Card.EYES.map(eyes => 0.25 * eyes)
+
+            this.trump_val = Card.EYES.map(eyes => eyes + 15.0)
         }
     }
 
@@ -186,16 +186,20 @@ class SimpleHandEvaluator {
         return result
     }
 
+    evalCard(game, card) {
+        if(card.suit === game.trump)
+            return this.trump_val[card.rank]
+        else return this.card_val[card.rank]
+    }
+    
     evalHand(game, player) {
         let outplay = game.active === player
-        let result = 0
+        let result = outplay ? this.outplay : 0
         let cards = game.hands[player].cards
         for (let i in cards) {
-            if (cards[i].suit === game.trump)
-                result += this.trump_val[cards[i].rank]
-            else
-                result += this.card_val[cards[i].rank]
-            if (game.deck.size > 2) {
+            result += this.evalCard(game, cards[i])
+
+            if (game.deck.size > 4 || game.deck.size === 4 && outplay) {
                 if (cards[i].rank === Card.KING) {
                     if (game.canMeld(i, player)) {
                         if (cards[i].suit === game.trump) {
@@ -220,9 +224,30 @@ class SimpleHandEvaluator {
                     else result += this.candidate
                 }
             }
-
         }
-        return result
+
+        let eyes_won = game.won[player].sum()
+        let eyes_lost = game.won[GameState.neg(player)].sum()
+
+        result += eyes_won
+        if (eyes_lost >= 45) {
+            if (eyes_won < 33)
+                result += this.schneider
+            if (eyes_won === 0) {
+                result += this.schwarz
+            }
+        }
+
+        result -= eyes_lost
+        if (eyes_won >= 45) {
+            if (eyes_lost < 33)
+                result -= this.schneider
+            if (eyes_lost === 0) {
+                result -= this.schwarz
+            }
+        }
+
+        return result 
     }
 }
 
@@ -251,10 +276,12 @@ class SimpleAI {
             for (let card of unknown) {
                 let state = new GameState(game)
                 state.play(i)
+                // marriage won the game
                 if (state.points(game.active))
                     return i
                 state.playIgnoreRules(card)
-                outcome2.push(state.won[game.active].sum() - state.won[game.other()].sum() + this.evalor.evalHand(state, game.active))
+                state.exchange()
+                outcome2.push(this.evalor.evalHand(state, game.active) + this.evalor.evalCard(state, card))
             }
             outcome2.sort((a, b) => a - b)
             let sum = 0
@@ -263,6 +290,7 @@ class SimpleAI {
             }
             outcome.push(sum)
         }
+        console.log(outcome)
         let max = outcome[0]
         let pos = 0
         for (let i in outcome) {
@@ -283,8 +311,9 @@ class SimpleAI {
             if (state.points(game.active))
                 return i
             state.exchange()
-            outcome.push(state.won[game.active].sum() - state.won[game.other()].sum() + this.evalor.evalHand(state, game.active))
+            outcome.push(this.evalor.evalHand(state, game.active))
         }
+        console.log(outcome)
         let max = outcome[0]
         let pos = ll[0]
         for (let i in ll) {
