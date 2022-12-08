@@ -13,10 +13,10 @@ function shuffle(arr, size) {
 
 class Suit {
     static SUITS = [
-        new Suit('H', 'Hearts', '\u2665'),
-        new Suit('S', 'Spades', '\u2660'),
-        new Suit('C', 'Clubs', '\u2663'),
-        new Suit('D', 'Diamonds', '\u2666')
+        new Suit('H', 'hearts', '\u2665'),
+        new Suit('S', 'spades', '\u2660'),
+        new Suit('C', 'clubs', '\u2663'),
+        new Suit('D', 'diamonds', '\u2666')
     ]
 
     constructor(short, verbose, symbol) {
