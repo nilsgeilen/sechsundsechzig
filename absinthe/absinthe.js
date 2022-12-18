@@ -11,6 +11,42 @@ function shuffle(arr, size) {
     return arr
 }
 
+function sum(arr) {
+    return arr.reduce((a, b) => a + b, 0)
+}
+
+function subsets(arra, arra_size) {
+    let set = []
+    for (let x = 0; x < Math.pow(2, arra.length); x++) {
+        let result = [];
+        i = arra.length - 1;
+        do {
+            if ((x & (1 << i)) !== 0) {
+                result.push(arra[i]);
+            }
+        } while (i--);
+
+        if (result.length == arra_size) {
+            set.push(result);
+        }
+    }
+    return set
+}
+
+function critmax(crit, arr) {
+    let max_crit = 0
+    let max_elem = null
+    for (let elem of arr) {
+        let _crit = crit(elem)
+        if (_crit > max_crit) {
+            max_crit = _crit
+            max_elem = elem
+        }
+    }
+    return max_elem
+}
+
+
 class Suit {
     static SUITS = [
         new Suit('H', 'hearts', '\u2665'),
@@ -206,50 +242,60 @@ function determine_combo(cards) {
     return new PokerCombo(cards, 'high-card', hand_value())
 }
 
-function subsets(arra, arra_size) {
-    let set = []
-    for (let x = 0; x < Math.pow(2, arra.length); x++) {
-        let result = [];
-        i = arra.length - 1;
-        do {
-            if ((x & (1 << i)) !== 0) {
-                result.push(arra[i]);
-            }
-        } while (i--);
-
-        if (result.length == arra_size) {
-            set.push(result);
-        }
-    }
-    return set
-}
-
-
 function determine_combos(played_cards, hand) {
     let missing_card_cnt = 5 - played_cards.length
     return subsets(hand, missing_card_cnt).map(sub => determine_combo([...played_cards, ...sub]))
 }
 
-function critmax(crit, arr) {
-    let max_crit = 0
-    let max_elem = null
-    for (let elem of arr) {
-        let _crit = crit(elem)
-        if (_crit > max_crit) {
-            max_crit = _crit
-            max_elem = elem
-        }
+
+function ai_draft(me, opposing_combo, hidden_cards) {
+    let missing_card_cnt = 4 - me.combo.length
+    console.log('draft')
+    console.log(hidden_cards.length)
+
+    let possible_draws = []
+    for (let i = 0; i < 100; i++) {
+        let deck = new Deck(hidden_cards)
+        deck.shuffle()
+        possible_draws.push(deck.draw_n(missing_card_cnt * 2 + 1))
     }
-    return max_elem
+
+    let checked_draws_cnt = possible_draws.length
+    let best_score = -1_000_000
+    let best_card = null
+    for (let i in me.drafting_pool) {
+        let card = me.drafting_pool[i]
+        let other_card = me.drafting_pool[-(i - 1)]
+        let new_combo = [...me.combo]
+
+        let random_opponenet_hands = []
+        for (let i = 0; i < 20; i++) {
+            let deck = new Deck(hidden_cards)
+            deck.shuffle()
+            random_opponenet_hands.push([other_card, ...deck.draw_n(me.hand.length + missing_card_cnt * 2 + 1)])
+        }
+        let random_opponent_combox = random_opponenet_hands.map(hand => critmax(combo => combo.score, determine_combos(opposing_combo, hand)))
+
+
+        let max_score_per_draw = []
+        for (let j = 0; j < checked_draws_cnt; j++) {
+            max_score_per_draw.push(critmax(combo => combo.score, determine_combos(new_combo, [...possible_draws[j], ...me.hand, card])))
+        }
+        let expected_score = sum(max_score_per_draw.map(mc => sum(random_opponent_combox.map(oc => mc.result_against(oc)))))
+        console.log(card.name + ' : ' + expected_score)
+        if (expected_score > best_score) {
+            best_score = expected_score
+            best_card = i
+        }
+
+    }
+    return best_card
 }
 
-function sum(arr) {
-    return arr.reduce((a, b) => a + b, 0)
-}
 
 function ai(me, opposing_combo, hidden_cards) {
     let missing_card_cnt = 4 - me.combo.length
-    console.log(missing_card_cnt)
+    console.log('play ' + missing_card_cnt)
 
     let random_opponenet_hands = []
     for (let i = 0; i < 20; i++) {
@@ -302,6 +348,7 @@ points = [2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 21]
 class Player {
     hand = []
     combo = []
+    drafting_pool = []
     combox = null
     score = 0
 }
@@ -318,11 +365,13 @@ function deal() {
     state.deck = Deck.fresh(Rank.RANKS, points)
     state.deck.shuffle()
 
-    state.player.hand = state.deck.draw_n(4)
+    state.player.hand = state.deck.draw_n(2)
     state.player.combo = []
+    state.player.drafting_pool = state.deck.draw_n(2)
     state.player.combox = null
-    state.ai.hand = state.deck.draw_n(4)
+    state.ai.hand = state.deck.draw_n(2)
     state.ai.combo = []
+    state.ai.drafting_pool = state.deck.draw_n(2)
     state.ai.combox = null
 
     state.ai.hand.sort(Card.compare)
@@ -332,7 +381,28 @@ function deal() {
 
 }
 
+function draft_card(idx) {
+    let cards_hidden_from_ai = state.deck.cards.filter(c => !(c in [...state.ai.hand, ...state.ai.combo, ...state.player.combo]))
+    let idx_ai = ai_draft(state.ai, state.player.combo, cards_hidden_from_ai)
+    state.ai.hand.push(state.ai.drafting_pool[idx_ai])
+    state.player.hand.push(state.ai.drafting_pool[-(idx_ai - 1)])
+    state.ai.drafting_pool = []
+
+    state.player.hand.push(state.player.drafting_pool[idx])
+    state.ai.hand.push(state.player.drafting_pool[-(idx - 1)])
+    state.player.drafting_pool = []
+
+    state.player.hand.sort(Card.compare)
+    state.ai.hand.sort(Card.compare)
+
+    draw_state()
+}
+
 function play_card(idx) {
+    if (state.player.drafting_pool.length) {
+        alert('please draft carfs first')
+        return
+    }
 
     let cards_hidden_from_ai = state.deck.cards.filter(c => !(c in [...state.ai.hand, ...state.ai.combo, ...state.player.combo]))
     let i = ai(state.ai, state.player.combo, cards_hidden_from_ai)
@@ -353,12 +423,8 @@ function play_card(idx) {
             state.ai.score += state.player.combox.points
         }
     } else {
-        state.player.hand.push(state.deck.draw())
-        state.player.hand.push(state.deck.draw())
-        state.player.hand.sort(Card.compare)
-        state.ai.hand.push(state.deck.draw())
-        state.ai.hand.push(state.deck.draw())
-        state.ai.hand.sort(Card.compare)
+        state.player.drafting_pool = state.deck.draw_n(2)
+        state.ai.drafting_pool = state.deck.draw_n(2)
     }
 
     draw_state()
@@ -369,10 +435,17 @@ function draw_state() {
         return 'gfx/card_' + card.suit.verbose + '_' + card.rank.symbol + '.png'
     }
 
+    $('#drafting_pool').empty()
+    if (state.player.drafting_pool.length) {
+        $('#drafting_pool').append('select one card ')
+        for (let i in state.player.drafting_pool) {
+            $('#drafting_pool').append($('<image src=' + gfx_path(state.player.drafting_pool[i]) + ' onclick=draft_card(' + i + ')></image>'))
+        }
+    }
+
     $('#ai_hand').empty()
-    for (let i in state.ai.hand)
+    for (let _ in state.ai.hand)
         $('#ai_hand').append($('<image src=gfx/card_back.png></image>'))
-    //$('#ai_hand').append($('<image src=' + gfx_path(state.ai.hand[i]) + '></image>'))
 
     $('#player_hand').empty()
     for (let i in state.player.hand)
